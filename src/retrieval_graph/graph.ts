@@ -11,7 +11,7 @@ import { makeRetriever } from "./retrieval.js";
 // Define the function that calls the model
 
 const SearchQuery = z.object({
-  query: z.string().describe("Search the indexed documents for a query."),
+  query: z.string().describe("Search the indexed products for a query."),
 });
 
 async function generateQuery(
