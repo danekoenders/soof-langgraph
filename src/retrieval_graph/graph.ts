@@ -41,7 +41,8 @@ const builder = new StateGraph(
   ConfigurationAnnotation
 )
   .addNode("respond", respond)
-  .addEdge("__start__", "respond");
+  .addEdge("__start__", "respond")
+  .addEdge("respond", "__end__");
 
 // Compile the graph
 export const graph = builder.compile({
