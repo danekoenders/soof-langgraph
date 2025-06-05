@@ -75,7 +75,7 @@ async function validateClaimsNode(
         complianceScore: 1.0,
       },
       validatedResponse: state.originalResponse,
-      messages: [{ role: "assistant", content: state.originalResponse }]
+      messages: [new AIMessage(state.originalResponse)]
     };
   }
   
@@ -90,7 +90,7 @@ async function validateClaimsNode(
       return {
         claimsValidation: validation,
         validatedResponse: state.originalResponse,
-        messages: [{ role: "assistant", content: state.originalResponse }]
+        messages: [new AIMessage(state.originalResponse)]
       };
     } else {
       // If not compliant, don't add to messages yet - wait for regeneration
@@ -111,7 +111,7 @@ async function validateClaimsNode(
         complianceScore: 1.0,
       },
       validatedResponse: state.originalResponse,
-      messages: [{ role: "assistant", content: state.originalResponse }]
+      messages: [new AIMessage(state.originalResponse)]
     };
   }
 }
@@ -162,7 +162,7 @@ async function regenerateResponse(
   
   // Add only the regenerated (compliant) response to conversation
   return {
-    messages: [{ role: "assistant", content: regeneratedContent }],
+    messages: [new AIMessage(regeneratedContent)],
     validatedResponse: regeneratedContent
   };
 }
