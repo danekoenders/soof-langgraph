@@ -18,6 +18,17 @@ export const ConfigurationAnnotation = Annotation.Root({
    * The language model used for generating responses. Should be in the form: provider/model-name.
    */
   responseModel: Annotation<string>,
+
+  /**
+   * Similarity threshold for claims matching (0-1). 
+   * Suggested: 0.75 for good balance between precision and recall
+   */
+  claimsValidationThreshold: Annotation<number>,
+
+  /**
+   * Maximum number of response regeneration attempts
+   */
+  maxRegenerationAttempts: Annotation<number>,
 });
 
 /**
@@ -36,5 +47,9 @@ export function ensureConfiguration(
       RESPONSE_SYSTEM_PROMPT_TEMPLATE,
     responseModel:
       configurable.responseModel || "openai/gpt-4o-mini",
+    claimsValidationThreshold:
+      configurable.claimsValidationThreshold || 0.5,
+    maxRegenerationAttempts:
+      configurable.maxRegenerationAttempts || 3,
   };
 }

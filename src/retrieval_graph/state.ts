@@ -9,8 +9,34 @@ export const InputStateAnnotation = Annotation.Root({
 });
 
 /**
- * Simple state that only manages conversation messages.
+ * Claims validation result structure
+ */
+export interface ClaimsValidationResult {
+  isCompliant: boolean;
+  violatedClaims: string[];
+  allowedClaims: string[];
+  suggestions: string[];
+  complianceScore: number;
+}
+
+/**
+ * State that manages conversation messages and claims validation
  */
 export const StateAnnotation = Annotation.Root({
   ...MessagesAnnotation.spec,
+  
+  /**
+   * Store the original response before claims validation
+   */
+  originalResponse: Annotation<string>,
+  
+  /**
+   * Claims validation results
+   */
+  claimsValidation: Annotation<ClaimsValidationResult>,
+  
+  /**
+   * Final validated and compliant response
+   */
+  validatedResponse: Annotation<string>,
 });
