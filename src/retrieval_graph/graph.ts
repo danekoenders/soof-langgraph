@@ -132,7 +132,7 @@ async function regenerateResponse(
   const model = await loadChatModel(configuration.responseModel);
   
   // Get the original user query for the prompt template
-  const userMessages = state.messages.filter(msg => msg.getType() === 'human');
+  const userMessages = state.messages.filter(msg => msg._getType() === 'human');
   const originalQuery = userMessages.length > 0 
     ? getMessageText(userMessages[userMessages.length - 1])
     : "User question";

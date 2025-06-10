@@ -46,6 +46,7 @@ export function ensureConfiguration(
       configurable.responseSystemPromptTemplate ||
       RESPONSE_SYSTEM_PROMPT_TEMPLATE,
     responseModel:
+      // configurable.responseModel || "openai/ft:gpt-4o-mini-2024-07-18:astoniclabs:soof-pt:Bg8XD5qL",
       configurable.responseModel || "openai/gpt-4o-mini",
     claimsValidationThreshold:
       configurable.claimsValidationThreshold || 0.5,
