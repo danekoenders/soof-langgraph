@@ -1,6 +1,8 @@
 {
   "node_version": "20",
   "graphs": {
+    "router": "./src/graphs/router/graph.ts:graph",
+    "chat": "./src/graphs/chat/graph.ts:graph",
     "retrieval_graph": "./src/retrieval_graph/graph.ts:graph"
   },
   "env": ".env",
