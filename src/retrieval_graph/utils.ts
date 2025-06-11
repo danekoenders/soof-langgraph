@@ -115,9 +115,10 @@ export async function validateClaims(
     .filter(claim => claim.claimType === "forbidden")
     .map(claim => claim.claim);
 
-  const generalClaims = significantClaims
-    .filter(claim => claim.claimType === "general")
-    .map(claim => claim.claim);
+  // Note: generalClaims are filtered but not used in current validation logic
+  // const generalClaims = significantClaims
+  //   .filter(claim => claim.claimType === "general")
+  //   .map(claim => claim.claim);
   
   // Calculate compliance score (forbidden claims make it non-compliant)
   const totalSignificantClaims = significantClaims.length;
@@ -181,7 +182,9 @@ const MOCK_PRODUCTS = [
 /**
  * Retrieve products based on search query
  */
-async function retrieveProducts(query: string): Promise<string> {
+async function retrieveProducts(_query: string): Promise<string> {
+  // Note: Currently returns all mock products regardless of query
+  // In a real implementation, this would filter based on the query parameter
   const products = MOCK_PRODUCTS.map(product => 
     `${product.name} - $${product.price} - ${product.description} (${product.inStock ? 'In Stock' : 'Out of Stock'})`
   ).join('\n');
