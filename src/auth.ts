@@ -4,27 +4,36 @@ import { gadget } from "./config/index.js";
 export const auth = new Auth()
   .authenticate(async (request: Request) => {
     const authorization = request.headers.get("authorization");
+    
+    console.log("🔍 Auth Debug - Authorization header:", authorization);
 
     if (!authorization) {
+      console.log("❌ Auth Debug - Missing authorization header");
       throw new HTTPException(401, { message: "Missing authorization header" });
     }
 
     const [authType, key] = authorization.split(" ");
+    console.log("🔍 Auth Debug - Parsed authType:", authType);
+    console.log("🔍 Auth Debug - Parsed key:", key ? `${key.substring(0, 10)}...` : "undefined");
 
     try {
       switch (authType) {
         case "Session":
+          console.log("🔍 Auth Debug - Processing Session token");
           return await validateSessionToken(key, request);
 
         case "Bearer":
+          console.log("🔍 Auth Debug - Processing Bearer token");
           return await validateAccessKey(key, request);
 
         default:
+          console.log("❌ Auth Debug - Invalid auth type:", authType);
           throw new HTTPException(401, {
             message: "Invalid authorization type",
           });
       }
     } catch (error) {
+      console.log("❌ Auth Debug - Authentication failed:", error);
       throw new HTTPException(401, {
         message: "Authentication failed",
         cause: error,
@@ -105,15 +114,24 @@ export const auth = new Auth()
 
 // Session token validation (chat users) - LIMITED PERMISSIONS
 async function validateSessionToken(token: string, _request: Request) {
+  console.log("🔍 Session Debug - Validating session token");
+  
   try {
     const validatedSession = await gadget.utils.validateSessionToken({
         token,
     });
 
+    console.log("🔍 Session Debug - Validation result:", {
+      isValid: validatedSession.isValid,
+      error: validatedSession.error
+    });
+
     if (!validatedSession.isValid) {
+      console.log("❌ Session Debug - Invalid session token:", validatedSession.error);
       throw new Error(validatedSession.error || "Invalid session token");
     }
 
+    console.log("✅ Session Debug - Session token validated successfully");
     return {
       identity: token,
       auth_type: "session",
@@ -121,18 +139,25 @@ async function validateSessionToken(token: string, _request: Request) {
     };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    console.log("❌ Session Debug - Validation failed:", errorMessage);
     throw new Error(`Session validation failed: ${errorMessage}`);
   }
 }
 
 // Access key validation (server-to-server) - FULL PERMISSIONS
 async function validateAccessKey(key: string, _request: Request) {
+  console.log("🔍 Bearer Debug - Validating access key");
+  
   const validKey = process.env.ACCESS_KEY || "";
+  console.log("🔍 Bearer Debug - Environment key exists:", !!validKey);
+  console.log("🔍 Bearer Debug - Key match:", key === validKey);
 
   if (key !== validKey) {
+    console.log("❌ Bearer Debug - Invalid access key provided");
     throw new Error("Invalid access key");
   }
 
+  console.log("✅ Bearer Debug - Access key validated successfully");
   return {
     identity: "server",
     auth_type: "server",
