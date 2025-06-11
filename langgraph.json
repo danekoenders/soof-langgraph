@@ -3,5 +3,8 @@
   "graphs": {
     "retrieval_graph": "./src/retrieval_graph/graph.ts:graph"
   },
-  "env": ".env"
+  "env": ".env",
+  "auth": {
+    "path": "./src/auth.ts:auth"
+  }
 }
