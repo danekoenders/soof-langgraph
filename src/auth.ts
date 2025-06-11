@@ -45,60 +45,120 @@ export const auth = new Auth()
 
   // Allow chat users to read their own threads
   .on("threads:read", ({ user, permissions }) => {
+    console.log("🔍 Auth Debug - threads:read triggered", {
+      authType: user.auth_type,
+      identity: user.identity,
+      permissions: permissions
+    });
+    
     if (user.auth_type === "session") {
       if (!permissions.includes("threads:read")) {
+        console.log("❌ Auth Debug - Session user lacks threads:read permission");
         throw new HTTPException(403, { message: "Unauthorized" });
       }
-      return { user_id: user.identity };
+      const filter = { user_id: user.identity };
+      console.log("✅ Auth Debug - Session user threads:read filter applied:", filter);
+      return filter;
     }
     // Server access - no restrictions
+    console.log("✅ Auth Debug - Server access threads:read - no restrictions");
     return;
   })
 
   // Allow chat users to create runs (for streaming)
   .on("threads:create_run", ({ user, permissions }) => {
+    console.log("🔍 Auth Debug - threads:create_run triggered", {
+      authType: user.auth_type,
+      identity: user.identity,
+      permissions: permissions
+    });
+    
     if (user.auth_type === "session") {
       if (!permissions.includes("threads:stream")) {
+        console.log("❌ Auth Debug - Session user lacks threads:stream permission");
         throw new HTTPException(403, { message: "Unauthorized to stream" });
       }
       // Users can only run on threads they own
-      return { user_id: user.identity };
+      const filter = { user_id: user.identity };
+      console.log("✅ Auth Debug - Session user threads:create_run filter applied:", filter);
+      return filter;
     }
     // Server access - no restrictions
+    console.log("✅ Auth Debug - Server access threads:create_run - no restrictions");
     return;
   })
 
   // DENY chat users from creating threads (they get created server-side)
   .on("threads:create", ({ user, value }) => {
+    console.log("🔍 Auth Debug - threads:create triggered", {
+      authType: user.auth_type,
+      identity: user.identity,
+      value: value
+    });
+    
     if (user.auth_type === "session") {
+      console.log("❌ Auth Debug - Session user denied threads:create");
       throw new HTTPException(403, {
         message: "Chat users cannot create threads directly",
       });
     }
     // Server can create threads
+    console.log("✅ Auth Debug - Server creating thread");
     if ("metadata" in value) {
       value.metadata ??= {};
       value.metadata.created_by = user.identity;
+      console.log("🔍 Auth Debug - Thread metadata set:", { created_by: user.identity });
     }
+    return;
+  })
+
+  // Add debugging for thread search operations
+  .on("threads:search", ({ user, permissions }) => {
+    console.log("🔍 Auth Debug - threads:search triggered", {
+      authType: user.auth_type,
+      identity: user.identity,
+      permissions: permissions
+    });
+    
+    if (user.auth_type === "session") {
+      const filter = { user_id: user.identity };
+      console.log("✅ Auth Debug - Session user threads:search filter applied:", filter);
+      return filter;
+    }
+    console.log("✅ Auth Debug - Server access threads:search - no restrictions");
     return;
   })
 
   // DENY chat users from accessing assistants, crons, etc.
   .on("assistants", ({ user }) => {
+    console.log("🔍 Auth Debug - assistants operation triggered", {
+      authType: user.auth_type,
+      identity: user.identity
+    });
+    
     if (user.auth_type === "session") {
+      console.log("❌ Auth Debug - Session user denied assistants access");
       throw new HTTPException(403, {
         message: "Chat users cannot access assistants",
       });
     }
+    console.log("✅ Auth Debug - Server access assistants - allowed");
     return; // Server access allowed
   })
 
   .on("crons", ({ user }) => {
+    console.log("🔍 Auth Debug - crons operation triggered", {
+      authType: user.auth_type,
+      identity: user.identity
+    });
+    
     if (user.auth_type === "session") {
+      console.log("❌ Auth Debug - Session user denied crons access");
       throw new HTTPException(403, {
         message: "Chat users cannot access cron jobs",
       });
     }
+    console.log("✅ Auth Debug - Server access crons - allowed");
     return; // Server access allowed
   })
 
