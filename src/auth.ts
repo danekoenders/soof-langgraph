@@ -4,11 +4,31 @@ import { gadget } from "./config/index.js";
 export const auth = new Auth()
   .authenticate(async (request: Request) => {
     const authorization = request.headers.get("authorization");
+    const apiKey = request.headers.get("x-api-key");
     
     console.log("🔍 Auth Debug - Authorization header:", authorization);
+    console.log("🔍 Auth Debug - X-API-Key header:", apiKey ? "present" : "missing");
 
+    // Handle LangGraph Cloud default authentication (x-api-key)
+    if (apiKey && !authorization) {
+      console.log("🔍 Auth Debug - Processing x-api-key authentication");
+      try {
+        // Let LangGraph Cloud handle its default auth
+        // Return a server-like user for Cloud dashboard access
+        return {
+          identity: "langgraph-cloud",
+          auth_type: "cloud",
+          permissions: ["*"], // Full permissions for Cloud dashboard
+        };
+      } catch (error) {
+        console.log("❌ Auth Debug - x-api-key validation failed");
+        throw new HTTPException(401, { message: "Invalid API key" });
+      }
+    }
+
+    // Handle custom authentication (Session/Bearer)
     if (!authorization) {
-      console.log("❌ Auth Debug - Missing authorization header");
+      console.log("❌ Auth Debug - Missing authorization header and x-api-key");
       throw new HTTPException(401, { message: "Missing authorization header" });
     }
 
@@ -63,8 +83,8 @@ export const auth = new Auth()
       console.log("✅ Auth Debug - Session user threads:read filter applied:", filter);
       return filter;
     }
-    // Server access - no restrictions
-    console.log("✅ Auth Debug - Server access threads:read - no restrictions");
+    // Server access or Cloud dashboard - no restrictions
+    console.log("✅ Auth Debug - Server/Cloud access threads:read - no restrictions");
     return;
   })
 
@@ -86,8 +106,8 @@ export const auth = new Auth()
       console.log("✅ Auth Debug - Session user threads:create_run filter applied:", filter);
       return filter;
     }
-    // Server access - no restrictions
-    console.log("✅ Auth Debug - Server access threads:create_run - no restrictions");
+    // Server access or Cloud dashboard - no restrictions
+    console.log("✅ Auth Debug - Server/Cloud access threads:create_run - no restrictions");
     return;
   })
 
@@ -105,8 +125,8 @@ export const auth = new Auth()
         message: "Chat users cannot create threads directly",
       });
     }
-    // Server can create threads
-    console.log("✅ Auth Debug - Server creating thread");
+    // Server or Cloud dashboard can create threads
+    console.log("✅ Auth Debug - Server/Cloud creating thread");
     if ("metadata" in value) {
       value.metadata ??= {};
       // Server creates threads - metadata should include session_token for user association
@@ -134,7 +154,7 @@ export const auth = new Auth()
       console.log("✅ Auth Debug - Session user threads:search filter applied:", filter);
       return filter;
     }
-    console.log("✅ Auth Debug - Server access threads:search - no restrictions");
+    console.log("✅ Auth Debug - Server/Cloud access threads:search - no restrictions");
     return;
   })
 
@@ -151,8 +171,8 @@ export const auth = new Auth()
         message: "Chat users cannot access assistants",
       });
     }
-    console.log("✅ Auth Debug - Server access assistants - allowed");
-    return; // Server access allowed
+    console.log("✅ Auth Debug - Server/Cloud access assistants - allowed");
+    return; // Server access or Cloud dashboard allowed
   })
 
   .on("crons", ({ user }) => {
@@ -167,18 +187,18 @@ export const auth = new Auth()
         message: "Chat users cannot access cron jobs",
       });
     }
-    console.log("✅ Auth Debug - Server access crons - allowed");
-    return; // Server access allowed
+    console.log("✅ Auth Debug - Server/Cloud access crons - allowed");
+    return; // Server access or Cloud dashboard allowed
   })
 
   // === SERVER ACCESS (Bearer Token) - FULL ACCESS ===
 
-  // Fallback handler for any unhandled resources - deny chat users, allow servers
+  // Fallback handler for any unhandled resources - deny chat users, allow servers/cloud
   .on("*", ({ user }) => {
     if (user.auth_type === "session") {
       throw new HTTPException(403, { message: "Access denied" });
     }
-    return; // Server access - no restrictions
+    return; // Server access or Cloud dashboard - no restrictions
   });
 
 // Session token validation (chat users) - LIMITED PERMISSIONS
