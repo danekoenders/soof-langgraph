@@ -2,8 +2,8 @@
  * Define the configurable parameters for the agent.
  */
 import { RunnableConfig } from "@langchain/core/runnables";
-import { RESPONSE_SYSTEM_PROMPT_TEMPLATE } from "./prompts.js";
 import { Annotation } from "@langchain/langgraph";
+import { BASE_CHAT_SYSTEM_PROMPT_TEMPLATE } from "../prompts/index.js";
 
 /**
  * Simple configuration for the chat agent.
@@ -43,8 +43,7 @@ export function ensureConfiguration(
 
   return {
     responseSystemPromptTemplate:
-      configurable.responseSystemPromptTemplate ||
-      RESPONSE_SYSTEM_PROMPT_TEMPLATE,
+      configurable.responseSystemPromptTemplate || BASE_CHAT_SYSTEM_PROMPT_TEMPLATE,
     responseModel:
       // configurable.responseModel || "openai/ft:gpt-4o-mini-2024-07-18:astoniclabs:soof-pt:Bg8XD5qL",
       configurable.responseModel || "openai/gpt-4o-mini",

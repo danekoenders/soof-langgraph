@@ -1,13 +1,8 @@
 import { Annotation } from "@langchain/langgraph";
-import { BaseMessage } from "@langchain/core/messages";
+import { SharedBaseState } from "../shared/baseState.js";
 
-function appendMessages(existing: BaseMessage[], newMsg: BaseMessage | BaseMessage[]): BaseMessage[] {
-  return [...existing, ...(Array.isArray(newMsg) ? newMsg : [newMsg])];
-}
-
+// Chat state - uses the shared base state (no additional fields needed)
 export const ChatState = Annotation.Root({
-  messages: Annotation<BaseMessage[], BaseMessage | BaseMessage[]>({
-    reducer: appendMessages,
-    default: () => [],
-  }),
+  ...SharedBaseState.spec,
+  // Chat graph doesn't need any additional fields beyond the base state
 }); 

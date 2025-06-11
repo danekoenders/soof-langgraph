@@ -1,23 +1,24 @@
 import { StateGraph } from "@langchain/langgraph";
 import { Annotation } from "@langchain/langgraph";
-import { BaseMessage, SystemMessage } from "@langchain/core/messages";
+import { SystemMessage } from "@langchain/core/messages";
 import { RunnableConfig } from "@langchain/core/runnables";
 import { initChatModel } from "langchain/chat_models/universal";
 import { z } from "zod";
+import { defaultContextManager } from "../../utils/contextManager.js";
+import { SharedBaseState, populateSharedBaseStateFromConfig } from "../shared/baseState.js";
 
-// Import specialized graphs (we'll create these)
+// Import specialized graphs
 import { graph as chatGraph } from "../chat/graph.js";
+import { graph as productInfoGraph } from "../productInfo/graph.js";
 // TODO: import other specialized graphs when created
-// import { graph as productInfoGraph } from "../productInfo/graph.js";
 // import { graph as recommendationGraph } from "../recommendation/graph.js";
 // import { graph as orderGraph } from "../order/graph.js";
 
-// Router state - simple message passing with intent detection
+// Router state - extends base state with router-specific fields
 const RouterState = Annotation.Root({
-  messages: Annotation<BaseMessage[], BaseMessage | BaseMessage[]>({
-    reducer: (e, n) => [...e, ...(Array.isArray(n) ? n : [n])],
-    default: () => [],
-  }),
+  ...SharedBaseState.spec,
+  
+  // Router-specific fields
   detectedIntent: Annotation<string>({
     reducer: (_, n) => n || "general_chat",
     default: () => "general_chat",
@@ -42,14 +43,13 @@ type IntentClassification = z.infer<typeof IntentClassificationSchema>;
 
 async function classifyIntent(
   state: typeof RouterState.State,
-  _config: RunnableConfig,
+  config: RunnableConfig
 ): Promise<typeof RouterState.Update> {
-  const model = await initChatModel("gpt-4o-mini");
+  // Populate state with thread metadata (including myShopifyDomain)
+  const threadData = populateSharedBaseStateFromConfig(config);
   
-  // Create structured output model
-  const structuredModel = model.withStructuredOutput(IntentClassificationSchema, {
-    name: "classify_intent",
-  });
+  const model = await initChatModel("gpt-4o-mini");
+  const structuredModel = model.withStructuredOutput(IntentClassificationSchema);
   
   // Extract the latest user message
   const latestMessage = state.messages[state.messages.length - 1];
@@ -94,10 +94,14 @@ Classify this message with high confidence and provide clear reasoning.
 `;
 
   try {
-    const classification: IntentClassification = await structuredModel.invoke([
-      new SystemMessage(classificationPrompt),
-      latestMessage
-    ]);
+    // Use context manager to build messages for classification
+    const classificationSystemMessage = defaultContextManager.createTaskSystemMessage(classificationPrompt);
+    const messages = defaultContextManager.buildContextMessages(
+      [latestMessage], // Only use the latest message for classification
+      [classificationSystemMessage]
+    );
+
+    const classification: IntentClassification = await structuredModel.invoke(messages);
 
     // Validate the classification (extra safety check)
     const validatedClassification = IntentClassificationSchema.parse(classification);
@@ -105,6 +109,7 @@ Classify this message with high confidence and provide clear reasoning.
     return {
       detectedIntent: validatedClassification.intent,
       routingReason: `${validatedClassification.reasoning} (Confidence: ${(validatedClassification.confidence * 100).toFixed(1)}%)`,
+      ...threadData // Include thread metadata in state
     };
     
   } catch (error) {
@@ -114,6 +119,7 @@ Classify this message with high confidence and provide clear reasoning.
     return {
       detectedIntent: "general_chat",
       routingReason: "Fallback to general chat due to classification error",
+      ...threadData // Include thread metadata even in fallback
     };
   }
 }
@@ -129,16 +135,8 @@ async function delegateToGraph(
     
     switch (intent) {
       case "product_info":
-        // TODO: Delegate to product info graph with claims validation
-        // result = await productInfoGraph.invoke(state, config);
-        // For now, delegate to chat graph with a note
-        result = await chatGraph.invoke({
-          ...state,
-          messages: [
-            ...state.messages,
-            new SystemMessage(`[ROUTER] Product info request detected. Reason: ${state.routingReason}. TODO: Implement specialized product info graph with claims validation.`)
-          ]
-        }, config);
+        // All states are now compatible - direct delegation
+        result = await productInfoGraph.invoke(state, config);
         break;
         
       case "recommendation":
@@ -177,7 +175,7 @@ async function delegateToGraph(
         
       case "general_chat":
       default:
-        // General chat - no special processing needed
+        // Direct delegation - states are compatible
         result = await chatGraph.invoke(state, config);
         break;
     }

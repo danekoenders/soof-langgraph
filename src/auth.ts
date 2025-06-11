@@ -134,7 +134,8 @@ export const auth = new Auth()
       
       console.log("🔍 Auth Debug - Thread metadata set:", { 
         created_by: user.identity,
-        session_token: value.metadata.session_token || "not_set"
+        session_token: value.metadata.session_token || "not_set",
+        myShopifyDomain: value.metadata.myShopifyDomain || "not_set"
       });
     }
     return;
