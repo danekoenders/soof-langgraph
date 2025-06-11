@@ -23,6 +23,7 @@ export interface ContextManagerConfig {
   chatbotName?: string;
   shopName?: string;
   windowSize?: number; // Number of messages to keep in rolling window
+  baseSystemPrompt?: boolean; // Whether to include the base system prompt (default: true)
 }
 
 export class ContextManager {
@@ -33,6 +34,7 @@ export class ContextManager {
       chatbotName: config.chatbotName || 'Soof',
       shopName: config.shopName || 'Test Shop',
       windowSize: config.windowSize || 10,
+      baseSystemPrompt: config.baseSystemPrompt !== undefined ? config.baseSystemPrompt : true,
     };
   }
 
@@ -61,11 +63,11 @@ export class ContextManager {
     const recentMessages = messages.slice(-this.config.windowSize);
 
     // Build the final message array:
-    // 1. Base system prompt (always first)
+    // 1. Base system prompt (always first, if enabled)
     // 2. Additional system messages (task-specific context)
     // 3. Recent conversation messages (rolling window)
     const contextMessages: BaseMessage[] = [
-      this.getBaseSystemPrompt(),
+      ...(this.config.baseSystemPrompt ? [this.getBaseSystemPrompt()] : []),
       ...additionalSystemMessages,
       ...recentMessages,
     ];

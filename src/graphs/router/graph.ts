@@ -4,8 +4,8 @@ import { SystemMessage } from "@langchain/core/messages";
 import { RunnableConfig } from "@langchain/core/runnables";
 import { initChatModel } from "langchain/chat_models/universal";
 import { z } from "zod";
-import { defaultContextManager } from "../../utils/contextManager.js";
 import { SharedBaseState } from "../shared/baseState.js";
+import { ContextManager } from "../../utils/contextManager.js";
 
 // Import specialized graphs
 import { graph as chatGraph } from "../chat/graph.js";
@@ -48,12 +48,8 @@ async function classifyIntent(
   const model = await initChatModel("gpt-4o-mini");
   const structuredModel = model.withStructuredOutput(IntentClassificationSchema);
   
-  // Extract the latest user message
-  const latestMessage = state.messages[state.messages.length - 1];
-  const conversationContext = state.messages.slice(-5).map(m => m.content?.toString() || "");
-  
   const classificationPrompt = `
-You are an intent classifier for a health supplement chatbot. Analyze the user's message and classify it into one of these intents:
+You are an intent classifier for a health supplement chatbot. Analyze the user's messages and classify it into one of these intents:
 
 ## Intent Categories:
 
@@ -78,23 +74,21 @@ You are an intent classifier for a health supplement chatbot. Analyze the user's
    - Use when: Casual conversation, greetings, general company questions, or simple acknowledgments
 
 ## CRITICAL COMPLIANCE RULES:
-- ⚠️ Product health claims MUST go to **product_info** for compliance validation
-- ⚠️ Any mention of medical conditions, pregnancy, medications → **product_info**
 - ⚠️ Order numbers, tracking, returns → **order_lookup**
 - ⚠️ Frustrated or urgent language → **handoff**
-
-## User Context:
-- Latest message: "${latestMessage.content}"
-- Previous context: ${conversationContext.join(" → ")}
 
 Classify this message with high confidence and provide clear reasoning.
 `;
 
   try {
-    // Use context manager to build messages for classification
-    const classificationSystemMessage = defaultContextManager.createTaskSystemMessage(classificationPrompt);
-    const messages = defaultContextManager.buildContextMessages(
-      [latestMessage], // Only use the latest message for classification
+    const classificationContextManager = new ContextManager({ 
+      baseSystemPrompt: false,
+      windowSize: 3
+    });
+    
+    const classificationSystemMessage = classificationContextManager.createTaskSystemMessage(classificationPrompt);
+    const messages = classificationContextManager.buildContextMessages(
+      state.messages,
       [classificationSystemMessage]
     );
 
@@ -106,7 +100,6 @@ Classify this message with high confidence and provide clear reasoning.
     return {
       detectedIntent: validatedClassification.intent,
       routingReason: `${validatedClassification.reasoning} (Confidence: ${(validatedClassification.confidence * 100).toFixed(1)}%)`,
-      // Pass through config values if we want them in state later (optional)
     };
     
   } catch (error) {

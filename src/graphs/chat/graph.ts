@@ -11,7 +11,6 @@ async function respond(
   const model = await initChatModel("gpt-4o-mini");
 
   // Use context manager to build messages with system prompt and rolling window
-  // Pass myShopifyDomain from thread metadata as dynamic shop name
   const messages = defaultContextManager.buildContextMessages(
     state.messages,
     [] // no additional system messages

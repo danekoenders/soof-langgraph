@@ -4,23 +4,39 @@ import { initChatModel } from "langchain/chat_models/universal";
 import { RunnableConfig } from "@langchain/core/runnables";
 import { searchShopCatalogTool } from "../../tools/shopifyMcp.js";
 import { z } from "zod";
-import { defaultContextManager } from "../../utils/contextManager.js";
+import {
+  defaultContextManager,
+  ContextManager,
+} from "../../utils/contextManager.js";
+import {
+  AIMessage,
+  SystemMessage,
+  HumanMessage,
+  FunctionMessage,
+} from "@langchain/core/messages";
 
 async function searchProducts(
   state: typeof ProductInfoState.State,
   config: RunnableConfig
 ): Promise<typeof ProductInfoState.Update> {
-  const myShopifyDomain = config?.configurable?.myShopifyDomain;
-
-  const { searchQuery, context } = await generateSearchFromHistory(
-    state.messages
-  );
-
-  if (!myShopifyDomain) {
-    throw new Error("myShopifyDomain is required but not provided in state");
-  }
-
   try {
+    const myShopifyDomain = config?.configurable?.myShopifyDomain;
+
+    if (!myShopifyDomain) {
+      const errorMsg = "myShopifyDomain is required but not provided in config";
+      console.error("Product search error:", errorMsg);
+      return {
+        error: errorMsg,
+        processingStatus: "Configuration error: Missing shop domain",
+        searchQuery: "",
+        productResults: [],
+      };
+    }
+
+    const { searchQuery, context } = await generateSearchFromHistory(
+      state.messages
+    );
+
     // Search the store catalog using Shopify MCP
     const mcpResult = await searchShopCatalogTool.invoke({
       query: searchQuery,
@@ -36,13 +52,19 @@ async function searchProducts(
       processingStatus: mcpResult.success
         ? `Search completed for "${searchQuery}" on ${myShopifyDomain}. Found ${mcpResult.products?.length || 0} products.`
         : `Search failed for "${searchQuery}" on ${myShopifyDomain}`,
+      error: mcpResult.success
+        ? null
+        : `MCP search failed: ${mcpResult.error || "Unknown error"}`,
     };
   } catch (error) {
-    console.log("Product search error:", error);
+    const errorMessage =
+      error instanceof Error ? error.message : "Unknown error occurred";
+    console.error("Product search error:", error);
     return {
-      searchQuery,
+      searchQuery: "",
       productResults: [],
-      processingStatus: "Product search failed",
+      processingStatus: "Product search failed due to error",
+      error: `Product search failed: ${errorMessage}`,
     };
   }
 }
@@ -54,7 +76,9 @@ async function generateSearchFromHistory(
   const recentMessages = messages.slice(-3);
 
   if (recentMessages.length === 0) {
-    throw new Error("No user messages found in chat history");
+    const errorMsg = "No user messages found in chat history";
+    console.error("Search generation error:", errorMsg);
+    throw new Error(errorMsg);
   }
 
   // Create the model with structured output
@@ -94,6 +118,11 @@ async function generateSearchFromHistory(
     );
 
     const result = await structuredModel.invoke(contextMessages);
+
+    if (!result.searchQuery || result.searchQuery.trim() === "") {
+      throw new Error("Generated search query is empty");
+    }
+
     return {
       searchQuery: result.searchQuery,
       context: result.context,
@@ -103,9 +132,20 @@ async function generateSearchFromHistory(
     // Fallback to a simple approach if LLM call fails
     const lastMessage = recentMessages[recentMessages.length - 1];
     const fallbackQuery = lastMessage.content?.toString() || "supplements";
+
+    if (fallbackQuery.trim() === "") {
+      throw new Error(
+        "Cannot generate search query: no valid content found in messages"
+      );
+    }
+
+    console.warn(
+      "Using fallback search query due to LLM error:",
+      fallbackQuery
+    );
     return {
       searchQuery: fallbackQuery,
-      context: "General product search - LLM analysis failed",
+      context: "General product search - LLM analysis failed, using fallback",
     };
   }
 }
@@ -114,52 +154,113 @@ async function generateResponse(
   state: typeof ProductInfoState.State,
   config: RunnableConfig
 ): Promise<typeof ProductInfoState.Update> {
-  const myShopifyDomain = config?.configurable?.myShopifyDomain;
-  if (!myShopifyDomain) {
-    throw new Error("myShopifyDomain is required but not provided in state");
-  }
-
-  const model = await initChatModel("gpt-4o-mini");
-
-  // Build context for response generation
-  const responseContext = `
-  You are a helpful supplement store assistant. Use the product information to answer the user's question about our products.
-  
-    ## Product Search Results
-
-    **Store**: ${myShopifyDomain}
-    **Search Query**: ${state.searchQuery}
-
-    ## Products Found (${state.productResults?.length || 0}):
-    ${
-      state.productResults
-        ?.map(
-          (p) => `
-    - **${p.productName}** - $${p.price} ${p.currency}
-    ${p.description}
-    URL: ${p.productUrl}
-    `
-        )
-        .join("\n") || "No products found"
+  try {
+    const myShopifyDomain = config?.configurable?.myShopifyDomain;
+    if (!myShopifyDomain) {
+      return {
+        error: "Missing myShopifyDomain in config",
+        processingStatus: "Configuration error",
+        messages: [],
+      };
     }
 
-    Generate a helpful response about these products.
-    `;
+    // Return early if search phase failed
+    if (state.error) {
+      return {
+        error: state.error,
+        processingStatus: "Previous error propagated",
+        messages: [new AIMessage(state.error)],
+      };
+    }
 
-  // Use context manager to build messages with product context
-  const productSystemMessage =
-    defaultContextManager.createTaskSystemMessage(responseContext);
+    // Initialise model
+    const model = await initChatModel("gpt-4o-mini");
 
-  const messages = defaultContextManager.buildContextMessages(state.messages, [
-    productSystemMessage,
-  ]);
+    // ------------------------------------------------------------------
+    // Structured output schema – single best product recommendation
+    // ------------------------------------------------------------------
+    const recommendationSchema = z.object({
+      hasRecommendation: z
+        .boolean()
+        .describe("Whether a suitable product was found"),
+      bestProduct: z
+        .object({
+          product_id: z.string().describe("GID of the product"),
+          title: z.string().describe("Product title"),
+          short_description: z
+            .string()
+            .describe("Concise description (Max 3 sentences)"),
+          price: z.string().optional().describe("Price"),
+          currency: z.string().optional().describe("Currency"),
+          image_url: z.string().optional().describe("Image URL"),
+          image_alt_text: z.string().optional(),
+        })
+        .optional(),
+      reason: z.string().optional().describe("Why this product is recommended"),
+      suggestions: z
+        .array(z.string())
+        .optional()
+        .describe(
+          "Alternative search suggestions when no suitable product is found"
+        ),
+    });
 
-  const response = await model.invoke(messages);
+    const structuredModel = model.withStructuredOutput(recommendationSchema);
 
-  return {
-    messages: [response],
-    processingStatus: "Response generated",
-  };
+    // ------------------------------------------------------------------
+    // Build prompt – feed raw MCP JSON directly
+    // ------------------------------------------------------------------
+    const responsePrompt = `You are a helpful e-commerce assistant for a supplement store. The user is looking for product information.
+
+    1. Analyse the product data and choose at most ONE best matching product.
+    2. If products array is empty, set hasRecommendation to false and provide suggestions.
+    3. Always respond ONLY with valid JSON matching the schema – **no additional keys, text or markdown**.
+`;
+
+    const systemMessage = new SystemMessage(responsePrompt);
+
+    const productContextManager = new ContextManager({
+      baseSystemPrompt: false,
+      windowSize: 3,
+    });
+
+    // Build messages with raw product JSON as content of the final user message
+    const rawProductJSON = JSON.stringify(
+      { products: state.productResults ?? [] },
+      null,
+      2
+    );
+
+    const messages = productContextManager.buildContextMessages(
+      state.messages,
+      [
+        systemMessage,
+        new FunctionMessage({
+          name: "fetch_products",
+          content: rawProductJSON,
+        }),
+      ]
+    );
+
+    const result = await structuredModel.invoke(messages);
+
+    // Prepare final AI message with JSON string for downstream consumers
+    const finalMessage = new AIMessage(JSON.stringify(result, null, 2));
+
+    return {
+      messages: [finalMessage],
+      processingStatus: "Recommendation generated",
+      error: null,
+    };
+  } catch (err) {
+    const message =
+      err instanceof Error ? err.message : "Unknown error in response node";
+    return {
+      messages: [new AIMessage(`Error: ${message}`)],
+      processingStatus: "Error in generateResponse",
+      error: message,
+    };
+  }
 }
 
 // Build the simple product info graph

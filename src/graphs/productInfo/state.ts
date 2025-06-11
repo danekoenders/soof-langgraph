@@ -21,4 +21,10 @@ export const ProductInfoState = Annotation.Root({
     reducer: (_, n) => n || "",
     default: () => "",
   }),
+  
+  // Error tracking
+  error: Annotation<string | null>({
+    reducer: (_, n) => n,
+    default: () => null,
+  }),
 }); 
