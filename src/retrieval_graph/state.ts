@@ -1,5 +1,5 @@
 import { BaseMessage, AIMessage, HumanMessage, SystemMessage } from "@langchain/core/messages";
-import { Annotation, MessagesAnnotation } from "@langchain/langgraph";
+import { Annotation } from "@langchain/langgraph";
 
 /**
  * This narrows the interface with the user.
