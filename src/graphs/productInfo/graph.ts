@@ -8,11 +8,17 @@ import { defaultContextManager } from "../../utils/contextManager.js";
 
 async function searchProducts(
   state: typeof ProductInfoState.State,
-  _config: RunnableConfig
+  config: RunnableConfig
 ): Promise<typeof ProductInfoState.Update> {
-  // Generate search query and context from chat history
-  const { searchQuery, context } = await generateSearchFromHistory(state.messages);
-  const myShopifyDomain = state.myShopifyDomain || "unknown-store";
+  const myShopifyDomain = config?.configurable?.myShopifyDomain;
+
+  const { searchQuery, context } = await generateSearchFromHistory(
+    state.messages
+  );
+
+  if (!myShopifyDomain) {
+    throw new Error("myShopifyDomain is required but not provided in state");
+  }
 
   try {
     // Search the store catalog using Shopify MCP
@@ -80,7 +86,8 @@ async function generateSearchFromHistory(
 
   try {
     // Use context manager for search analysis
-    const searchSystemMessage = defaultContextManager.createTaskSystemMessage(searchPrompt);
+    const searchSystemMessage =
+      defaultContextManager.createTaskSystemMessage(searchPrompt);
     const contextMessages = defaultContextManager.buildContextMessages(
       recentMessages,
       [searchSystemMessage]
@@ -105,8 +112,13 @@ async function generateSearchFromHistory(
 
 async function generateResponse(
   state: typeof ProductInfoState.State,
-  _config: RunnableConfig
+  config: RunnableConfig
 ): Promise<typeof ProductInfoState.Update> {
+  const myShopifyDomain = config?.configurable?.myShopifyDomain;
+  if (!myShopifyDomain) {
+    throw new Error("myShopifyDomain is required but not provided in state");
+  }
+
   const model = await initChatModel("gpt-4o-mini");
 
   // Build context for response generation
@@ -115,14 +127,14 @@ async function generateResponse(
   
     ## Product Search Results
 
-    **Store**: ${state.myShopifyDomain}
+    **Store**: ${myShopifyDomain}
     **Search Query**: ${state.searchQuery}
 
     ## Products Found (${state.productResults?.length || 0}):
     ${
-    state.productResults
+      state.productResults
         ?.map(
-        (p) => `
+          (p) => `
     - **${p.productName}** - $${p.price} ${p.currency}
     ${p.description}
     URL: ${p.productUrl}
@@ -135,12 +147,12 @@ async function generateResponse(
     `;
 
   // Use context manager to build messages with product context
-  const productSystemMessage = defaultContextManager.createTaskSystemMessage(responseContext);
+  const productSystemMessage =
+    defaultContextManager.createTaskSystemMessage(responseContext);
 
-  const messages = defaultContextManager.buildContextMessages(
-    state.messages,
-    [productSystemMessage]
-  );
+  const messages = defaultContextManager.buildContextMessages(state.messages, [
+    productSystemMessage,
+  ]);
 
   const response = await model.invoke(messages);
 

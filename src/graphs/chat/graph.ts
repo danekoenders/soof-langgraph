@@ -3,31 +3,26 @@ import { ChatState } from "./state.js";
 import { initChatModel } from "langchain/chat_models/universal";
 import { RunnableConfig } from "@langchain/core/runnables";
 import { defaultContextManager } from "../../utils/contextManager.js";
-import { populateSharedBaseStateFromConfig } from "../shared/baseState.js";
 
 async function respond(
   state: typeof ChatState.State,
-  config: RunnableConfig,
+  _config: RunnableConfig
 ): Promise<typeof ChatState.Update> {
-  // Populate state with thread metadata
-  const threadData = populateSharedBaseStateFromConfig(config);
-  
   const model = await initChatModel("gpt-4o-mini");
-  
+
   // Use context manager to build messages with system prompt and rolling window
   // Pass myShopifyDomain from thread metadata as dynamic shop name
   const messages = defaultContextManager.buildContextMessages(
-    state.messages, 
-    [], // no additional system messages
+    state.messages,
+    [] // no additional system messages
   );
-  
+
   // Simple chat response - no routing tools needed since router handles classification
   const response = await model.invoke(messages);
-  
+
   // Return both the response and the thread metadata
-  return { 
+  return {
     messages: [response],
-    ...threadData // This will populate myShopifyDomain, threadId, etc.
   };
 }
 
@@ -37,4 +32,4 @@ const builder = new StateGraph({ stateSchema: ChatState })
   .addEdge("respond", "__end__");
 
 export const graph = builder.compile();
-graph.name = "General Chat Graph"; 
+graph.name = "General Chat Graph";

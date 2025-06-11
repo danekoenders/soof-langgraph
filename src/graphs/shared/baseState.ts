@@ -12,36 +12,9 @@ export const SharedBaseState = Annotation.Root({
     default: () => [],
   }),
   
-  // Store context - automatically populated from thread metadata
-  myShopifyDomain: Annotation<string>({
-    reducer: (_, n) => n || "",
-    default: () => "",
-  }),
-  
-  // Thread/conversation metadata
-  threadId: Annotation<string>({
-    reducer: (_, n) => n || "",
-    default: () => "",
-  }),
-  
   // Last updated timestamp for tracking
   lastUpdated: Annotation<string>({
     reducer: (_, n) => n || new Date().toISOString(),
     default: () => new Date().toISOString(),
   }),
 });
-
-/**
- * Helper function to populate SharedBaseState with thread metadata
- * Call this at the start of any graph node that needs thread metadata
- */
-export function populateSharedBaseStateFromConfig(config: any): Partial<typeof SharedBaseState.State> {
-  console.log("Config:", config);
-  const threadMetadata = config?.configurable || {};
-  console.log("Thread metadata:", threadMetadata);
-  
-  return {
-    myShopifyDomain: threadMetadata.myShopifyDomain || "",
-    threadId: threadMetadata.thread_id || "",
-  };
-} 

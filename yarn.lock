@@ -921,10 +921,10 @@
   resolved "https://registry.npmjs.org/@eslint/js/-/js-9.10.0.tgz"
   integrity sha512-fuXtbiP5GWIn8Fz+LWoOMVf/Jxm+aajZYkhi6CuEm4SxymFM+eUWzbO9qXT+L0iCkL5+KGYMCSGxo686H19S1g==
 
-"@gadget-client/soof-s@^1.40.0-development.2115":
-  version "1.40.0-development.2115"
-  resolved "https://registry.gadget.dev/npm/_/tarball/180378/361588/21630#0d5c28591a07a63931885faeece9003cd627b197"
-  integrity sha1-DVwoWRoHpjkxiF+u7OkAPNYnsZc=
+"@gadget-client/soof-s@^1.40.0-development.2149":
+  version "1.40.0-development.2149"
+  resolved "https://registry.gadget.dev/npm/_/tarball/180378/361588/21741#27e7c84958b86ef8418edd6850fbf40e62b67d1d"
+  integrity sha1-J+fISVi4bvhBjt1oUPv0DmK2fR0=
   dependencies:
     "@gadgetinc/api-client-core" "0.15.42"
     tiny-graphql-query-compiler "^0.2.2"

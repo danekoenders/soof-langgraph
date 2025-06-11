@@ -17,7 +17,7 @@
     "format": "prettier --write ."
   },
   "dependencies": {
-    "@gadget-client/soof-s": "^1.40.0-development.2115",
+    "@gadget-client/soof-s": "^1.40.0-development.2149",
     "@langchain/cohere": "^0.3.2",
     "@langchain/community": "^0.3.27",
     "@langchain/core": "^0.3.37",

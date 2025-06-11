@@ -5,7 +5,7 @@ import { RunnableConfig } from "@langchain/core/runnables";
 import { initChatModel } from "langchain/chat_models/universal";
 import { z } from "zod";
 import { defaultContextManager } from "../../utils/contextManager.js";
-import { SharedBaseState, populateSharedBaseStateFromConfig } from "../shared/baseState.js";
+import { SharedBaseState } from "../shared/baseState.js";
 
 // Import specialized graphs
 import { graph as chatGraph } from "../chat/graph.js";
@@ -43,11 +43,8 @@ type IntentClassification = z.infer<typeof IntentClassificationSchema>;
 
 async function classifyIntent(
   state: typeof RouterState.State,
-  config: RunnableConfig
+  _config: RunnableConfig
 ): Promise<typeof RouterState.Update> {
-  // Populate state with thread metadata (including myShopifyDomain)
-  const threadData = populateSharedBaseStateFromConfig(config);
-  
   const model = await initChatModel("gpt-4o-mini");
   const structuredModel = model.withStructuredOutput(IntentClassificationSchema);
   
@@ -109,7 +106,7 @@ Classify this message with high confidence and provide clear reasoning.
     return {
       detectedIntent: validatedClassification.intent,
       routingReason: `${validatedClassification.reasoning} (Confidence: ${(validatedClassification.confidence * 100).toFixed(1)}%)`,
-      ...threadData // Include thread metadata in state
+      // Pass through config values if we want them in state later (optional)
     };
     
   } catch (error) {
@@ -119,7 +116,6 @@ Classify this message with high confidence and provide clear reasoning.
     return {
       detectedIntent: "general_chat",
       routingReason: "Fallback to general chat due to classification error",
-      ...threadData // Include thread metadata even in fallback
     };
   }
 }

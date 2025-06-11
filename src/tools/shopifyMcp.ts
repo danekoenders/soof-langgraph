@@ -27,7 +27,7 @@ export const searchShopCatalogTool = tool(
       console.log(`[MCP] Searching catalog for "${query}" on store: ${myShopifyDomain}`);
       
       // MCP endpoint for the Shopify store
-      const mcpEndpoint = `https://${myShopifyDomain}/mcp/storefront`;
+      const mcpEndpoint = `https://${myShopifyDomain}/api/mcp`;
       
       try {
         const response = await fetch(mcpEndpoint, {
