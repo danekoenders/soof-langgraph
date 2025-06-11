@@ -129,37 +129,48 @@ async function delegateToGraph(
         break;
         
       case "recommendation":
-        // TODO: Delegate to recommendation graph
-        // result = await recommendationGraph.invoke(state, config);
-        result = await chatGraph.invoke({
-          ...state,
-          messages: [
-            ...state.messages,
-            new SystemMessage(`[ROUTER] Product recommendation request detected. Reason: ${state.routingReason}. TODO: Implement specialized recommendation graph.`)
-          ]
-        }, config);
+        {
+          const routerNote = new SystemMessage(
+            `[ROUTER] Product recommendation request detected. Reason: ${state.routingReason}. TODO: Implement specialized recommendation graph.`
+          );
+          result = await chatGraph.invoke(state, {
+            ...config,
+            configurable: {
+              ...config.configurable,
+              extraSystemMessages: [routerNote],
+            },
+          });
+        }
         break;
         
       case "order_lookup":
-        // TODO: Delegate to order graph
-        // result = await orderGraph.invoke(state, config);
-        result = await chatGraph.invoke({
-          ...state,
-          messages: [
-            ...state.messages,
-            new SystemMessage(`[ROUTER] Order lookup request detected. Reason: ${state.routingReason}. TODO: Implement specialized order graph.`)
-          ]
-        }, config);
+        {
+          const routerNote = new SystemMessage(
+            `[ROUTER] Order lookup request detected. Reason: ${state.routingReason}. TODO: Implement specialized order graph.`
+          );
+          result = await chatGraph.invoke(state, {
+            ...config,
+            configurable: {
+              ...config.configurable,
+              extraSystemMessages: [routerNote],
+            },
+          });
+        }
         break;
         
       case "handoff":
-        result = await chatGraph.invoke({
-          ...state,
-          messages: [
-            ...state.messages,
-            new SystemMessage(`[ROUTER] Customer service handoff requested. Reason: ${state.routingReason}. Escalating to human agent.`)
-          ]
-        }, config);
+        {
+          const routerNote = new SystemMessage(
+            `[ROUTER] Customer service handoff requested. Reason: ${state.routingReason}. Escalating to human agent.`
+          );
+          result = await chatGraph.invoke(state, {
+            ...config,
+            configurable: {
+              ...config.configurable,
+              extraSystemMessages: [routerNote],
+            },
+          });
+        }
         break;
         
       case "general_chat":
@@ -173,13 +184,16 @@ async function delegateToGraph(
   } catch (error) {
     // Fallback to general chat on any error
     console.log(`Router delegation error for intent ${intent}:`, error);
-    const fallbackResult = await chatGraph.invoke({
-      ...state,
-      messages: [
-        ...state.messages,
-        new SystemMessage(`[ROUTER ERROR] Fallback to general chat due to error in ${intent} handler.`)
-      ]
-    }, config);
+    const errorNote = new SystemMessage(
+      `[ROUTER ERROR] Fallback to general chat due to error in ${intent} handler.`
+    );
+    const fallbackResult = await chatGraph.invoke(state, {
+      ...config,
+      configurable: {
+        ...config.configurable,
+        extraSystemMessages: [errorNote],
+      },
+    });
     
     return fallbackResult as typeof RouterState.Update;
   }

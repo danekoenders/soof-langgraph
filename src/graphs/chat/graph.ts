@@ -3,17 +3,22 @@ import { ChatState } from "./state.js";
 import { initChatModel } from "langchain/chat_models/universal";
 import { RunnableConfig } from "@langchain/core/runnables";
 import { defaultContextManager } from "../../utils/contextManager.js";
+import { SystemMessage } from "@langchain/core/messages";
 
 async function respond(
   state: typeof ChatState.State,
-  _config: RunnableConfig
+  config: RunnableConfig
 ): Promise<typeof ChatState.Update> {
   const model = await initChatModel("gpt-4o-mini");
+
+  // Read any extra system messages injected by the router or other callers
+  const extraSystemMessages: SystemMessage[] =
+    (config.configurable?.extraSystemMessages as SystemMessage[]) ?? [];
 
   // Use context manager to build messages with system prompt and rolling window
   const messages = defaultContextManager.buildContextMessages(
     state.messages,
-    [] // no additional system messages
+    extraSystemMessages
   );
 
   // Simple chat response - no routing tools needed since router handles classification
