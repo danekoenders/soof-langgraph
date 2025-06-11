@@ -56,7 +56,10 @@ export const auth = new Auth()
         console.log("❌ Auth Debug - Session user lacks threads:read permission");
         throw new HTTPException(403, { message: "Unauthorized" });
       }
-      const filter = { user_id: user.identity };
+      
+      // Filter by session_token (matches metadata field set during creation)
+      const filter = { session_token: user.identity };
+      
       console.log("✅ Auth Debug - Session user threads:read filter applied:", filter);
       return filter;
     }
@@ -78,8 +81,8 @@ export const auth = new Auth()
         console.log("❌ Auth Debug - Session user lacks threads:stream permission");
         throw new HTTPException(403, { message: "Unauthorized to stream" });
       }
-      // Users can only run on threads they own
-      const filter = { user_id: user.identity };
+      // Users can only run on threads they own (filter by session_token)
+      const filter = { session_token: user.identity };
       console.log("✅ Auth Debug - Session user threads:create_run filter applied:", filter);
       return filter;
     }
@@ -106,8 +109,13 @@ export const auth = new Auth()
     console.log("✅ Auth Debug - Server creating thread");
     if ("metadata" in value) {
       value.metadata ??= {};
+      // Server creates threads - metadata should include session_token for user association
       value.metadata.created_by = user.identity;
-      console.log("🔍 Auth Debug - Thread metadata set:", { created_by: user.identity });
+      
+      console.log("🔍 Auth Debug - Thread metadata set:", { 
+        created_by: user.identity,
+        session_token: value.metadata.session_token || "not_set"
+      });
     }
     return;
   })
@@ -121,7 +129,8 @@ export const auth = new Auth()
     });
     
     if (user.auth_type === "session") {
-      const filter = { user_id: user.identity };
+      // Filter by session_token (matches metadata field set during creation)
+      const filter = { session_token: user.identity };
       console.log("✅ Auth Debug - Session user threads:search filter applied:", filter);
       return filter;
     }
