@@ -92,14 +92,14 @@ Classify this message with high confidence and provide clear reasoning.
       [classificationSystemMessage]
     );
 
-    const classification: IntentClassification = await structuredModel.invoke(messages);
-
-    // Validate the classification (extra safety check)
-    const validatedClassification = IntentClassificationSchema.parse(classification);
+    // Parse and validate the structured output in one step
+    const classification = IntentClassificationSchema.parse(
+      await structuredModel.invoke(messages)
+    );
     
     return {
-      detectedIntent: validatedClassification.intent,
-      routingReason: `${validatedClassification.reasoning} (Confidence: ${(validatedClassification.confidence * 100).toFixed(1)}%)`,
+      detectedIntent: classification.intent,
+      routingReason: `${classification.reasoning} (Confidence: ${(classification.confidence * 100).toFixed(1)}%)`,
     };
     
   } catch (error) {
