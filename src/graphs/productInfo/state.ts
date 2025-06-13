@@ -1,9 +1,16 @@
 import { Annotation } from "@langchain/langgraph";
-import { SharedBaseState } from "../shared/baseState.js";
+import { BaseMessage } from "@langchain/core/messages";
 
-// Product information state - extends base state with product-specific fields
+// Product information state - standalone with its own messages and product-specific fields
 export const ProductInfoState = Annotation.Root({
-  ...SharedBaseState.spec,
+  // Core conversation for product info
+  messages: Annotation<BaseMessage[], BaseMessage | BaseMessage[]>({
+    reducer: (existing, newMsg) => {
+      const incoming = Array.isArray(newMsg) ? newMsg : [newMsg];
+      return [...existing, ...incoming];
+    },
+    default: () => [],
+  }),
   
   // Product search and context
   searchQuery: Annotation<string>({

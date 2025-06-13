@@ -1,24 +1,23 @@
 import { StateGraph } from "@langchain/langgraph";
 import { Annotation } from "@langchain/langgraph";
-import { SystemMessage } from "@langchain/core/messages";
+import { SystemMessage, BaseMessage } from "@langchain/core/messages";
 import { RunnableConfig } from "@langchain/core/runnables";
 import { initChatModel } from "langchain/chat_models/universal";
 import { z } from "zod";
-import { SharedBaseState } from "../shared/baseState.js";
 import { ContextManager } from "../../utils/contextManager.js";
 
-// Import specialized graphs
 import { graph as chatGraph } from "../chat/graph.js";
 import { graph as productInfoGraph } from "../productInfo/graph.js";
-// TODO: import other specialized graphs when created
-// import { graph as recommendationGraph } from "../recommendation/graph.js";
-// import { graph as orderGraph } from "../order/graph.js";
 
-// Router state - extends base state with router-specific fields
 const RouterState = Annotation.Root({
-  ...SharedBaseState.spec,
+  messages: Annotation<BaseMessage[], BaseMessage | BaseMessage[]>({
+    reducer: (existing, newMsg) => {
+      const incoming = Array.isArray(newMsg) ? newMsg : [newMsg];
+      return [...existing, ...incoming];
+    },
+    default: () => [],
+  }),
   
-  // Router-specific fields
   detectedIntent: Annotation<string>({
     reducer: (_, n) => n || "general_chat",
     default: () => "general_chat",
@@ -26,6 +25,11 @@ const RouterState = Annotation.Root({
   routingReason: Annotation<string>({
     reducer: (_, n) => n || "",
     default: () => "",
+  }),
+  
+  lastUpdated: Annotation<string>({
+    reducer: (_, n) => n || new Date().toISOString(),
+    default: () => new Date().toISOString(),
   }),
 });
 
@@ -38,8 +42,6 @@ const IntentClassificationSchema = z.object({
   reasoning: z.string()
     .describe("Brief explanation for why this intent was chosen"),
 });
-
-type IntentClassification = z.infer<typeof IntentClassificationSchema>;
 
 async function classifyIntent(
   state: typeof RouterState.State,
@@ -119,13 +121,16 @@ async function delegateToGraph(
 ): Promise<typeof RouterState.Update> {
   const intent = state.detectedIntent;
   
+  // Create a fresh state for subgraphs with only messages
+  const subgraphInput = { messages: state.messages };
+  
   try {
     let result;
     
     switch (intent) {
       case "product_info":
-        // All states are now compatible - direct delegation
-        result = await productInfoGraph.invoke(state, config);
+        // Pass fresh state to product info graph
+        result = await productInfoGraph.invoke(subgraphInput, config);
         break;
         
       case "recommendation":
@@ -133,7 +138,7 @@ async function delegateToGraph(
           const routerNote = new SystemMessage(
             `[ROUTER] Product recommendation request detected. Reason: ${state.routingReason}. TODO: Implement specialized recommendation graph.`
           );
-          result = await chatGraph.invoke(state, {
+          result = await chatGraph.invoke(subgraphInput, {
             ...config,
             configurable: {
               ...config.configurable,
@@ -148,7 +153,7 @@ async function delegateToGraph(
           const routerNote = new SystemMessage(
             `[ROUTER] Order lookup request detected. Reason: ${state.routingReason}. TODO: Implement specialized order graph.`
           );
-          result = await chatGraph.invoke(state, {
+          result = await chatGraph.invoke(subgraphInput, {
             ...config,
             configurable: {
               ...config.configurable,
@@ -163,7 +168,7 @@ async function delegateToGraph(
           const routerNote = new SystemMessage(
             `[ROUTER] Customer service handoff requested. Reason: ${state.routingReason}. Escalating to human agent.`
           );
-          result = await chatGraph.invoke(state, {
+          result = await chatGraph.invoke(subgraphInput, {
             ...config,
             configurable: {
               ...config.configurable,
@@ -175,19 +180,23 @@ async function delegateToGraph(
         
       case "general_chat":
       default:
-        // Direct delegation - states are compatible
-        result = await chatGraph.invoke(state, config);
+        // Pass fresh state to chat graph
+        result = await chatGraph.invoke(subgraphInput, config);
         break;
     }
     
-    return result as typeof RouterState.Update;
+    // Return the messages from the subgraph result
+    return {
+      messages: result.messages || [],
+      lastUpdated: new Date().toISOString(),
+    };
   } catch (error) {
     // Fallback to general chat on any error
     console.log(`Router delegation error for intent ${intent}:`, error);
     const errorNote = new SystemMessage(
       `[ROUTER ERROR] Fallback to general chat due to error in ${intent} handler.`
     );
-    const fallbackResult = await chatGraph.invoke(state, {
+    const fallbackResult = await chatGraph.invoke(subgraphInput, {
       ...config,
       configurable: {
         ...config.configurable,
@@ -195,7 +204,10 @@ async function delegateToGraph(
       },
     });
     
-    return fallbackResult as typeof RouterState.Update;
+    return {
+      messages: fallbackResult.messages || [],
+      lastUpdated: new Date().toISOString(),
+    };
   }
 }
 
@@ -208,4 +220,4 @@ const builder = new StateGraph({ stateSchema: RouterState })
   .addEdge("delegateToGraph", "__end__");
 
 export const graph = builder.compile();
-graph.name = "Smart Router Graph"; 
+graph.name = "Router Graph"; 

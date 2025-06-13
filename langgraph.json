@@ -4,7 +4,8 @@
     "router": "./src/graphs/router/graph.ts:graph",
     "chat": "./src/graphs/chat/graph.ts:graph",
     "productInfo": "./src/graphs/productInfo/graph.ts:graph",
-    "retrieval_graph": "./src/retrieval_graph/graph.ts:graph"
+    "retrieval_graph": "./src/retrieval_graph/graph.ts:graph",
+    "start": "./src/start/graph.ts:graph"
   },
   "env": ".env",
   "auth": {

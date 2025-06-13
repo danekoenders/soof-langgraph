@@ -1,0 +1,2 @@
+- Add checks to make sure the input lenght is not above 300 tokens.
+- Make sure to only stream things back that are goof for the user to read.
