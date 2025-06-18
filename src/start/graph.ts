@@ -16,10 +16,25 @@ const boundModel = model.bindTools(tools);
 const callModel = async (state: typeof AgentState.State) => {
   const { messages } = state;
   const contextMessages = buildChatContext(messages);
-  console.log(contextMessages);
+  
   const response = await boundModel.invoke(contextMessages);
   const aiMessage = isAIMessage(response) ? response : new AIMessage(response);
   return { messages: [aiMessage] };
+};
+
+// Custom tools node that passes state to tools
+const callTools = async (state: typeof AgentState.State, config: any) => {
+  // Create a new config that includes the current state
+  const configWithState = {
+    ...config,
+    configurable: {
+      ...config?.configurable,
+      currentState: state
+    }
+  };
+  
+  // Call the tool node with the enhanced config
+  return await toolNode.invoke(state, configWithState);
 };
 
 const routeMessage = (state: typeof AgentState.State) => {
@@ -33,7 +48,7 @@ const routeMessage = (state: typeof AgentState.State) => {
 
 const workflow = new StateGraph(AgentState)
   .addNode("agent", callModel)
-  .addNode("tools", toolNode)
+  .addNode("tools", callTools)
   .addEdge(START, "agent")
   .addConditionalEdges("agent", routeMessage)
   .addEdge("tools", "agent");

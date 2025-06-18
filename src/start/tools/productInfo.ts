@@ -8,7 +8,7 @@ const productInfoTool = new DynamicStructuredTool({
     searchQuery: z.string().describe("The product search query."),
     context: z
       .string()
-      .describe("Additional context about what the user is requesting."),
+      .describe("Additional context about what the user is requesting."),  
   }),
   func: async ({ searchQuery, context }, _runManager, config) => {
     // Get the Shopify domain from config.configurable (cast to any to avoid type error)
