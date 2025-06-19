@@ -39,6 +39,8 @@ export async function queryRelevantClaims(
   const embeddings = new OpenAIEmbeddings({ model: "text-embedding-3-small" });
   const queryEmbedding = await embeddings.embedQuery(responseText);
 
+  console.log("querying claims for", responseText);
+
   const queryResponse = await index.query({
     vector: queryEmbedding,
     topK,
@@ -64,9 +66,10 @@ export async function queryRelevantClaims(
  */
 export async function validateClaims(
   text: string,
-  threshold = 0.75,
+  threshold = 0.5,
 ): Promise<ClaimsValidationResult> {
   const claims = await queryRelevantClaims(text);
+  console.log("claims", claims);
   const significant = claims.filter((c) => c.score >= threshold);
 
   const allowed = significant
@@ -101,7 +104,7 @@ export async function validateClaims(
 export async function enforceCompliance(
   text: string,
   modelName = "openai/gpt-4o-mini",
-  threshold = 0.75,
+  threshold = 0.5,
 ): Promise<{ final: string; validation: ClaimsValidationResult }> {
   const validation = await validateClaims(text, threshold);
   if (validation.isCompliant) {
@@ -112,9 +115,13 @@ export async function enforceCompliance(
   const systemPrompt = [
     "You are a compliance assistant rewriting content to remove forbidden health or nutrition claims.",
     `Forbidden claims: ${validation.violatedClaims.join(", ")}`,
+    `Allowed claims: ${validation.allowedClaims.join(", ")}`,
     "Rewrite the answer so it is factual, concise, and compliant.",
+    "Always generate with the markdown structure as the original text, if applicable.",
   ].join("\n");
 
+  console.log("validating with system prompt", systemPrompt);
+  console.log("text to regenerate", text);
   const regenerated = await model.invoke([
     { role: "system", content: systemPrompt },
     { role: "assistant", content: text },
@@ -134,7 +141,7 @@ export async function enforceCompliance(
 export async function makeCompliant(
   answer: string,
   modelName = "openai/gpt-4o-mini",
-  threshold = 0.75,
+  threshold = 0.5,
 ) {
   return enforceCompliance(answer, modelName, threshold);
 } 

@@ -166,8 +166,9 @@ async function validateSessionToken(token: string, myShopifyDomain: string, _req
 // Access key validation (server-to-server) - FULL PERMISSIONS
 async function validateAccessKey(key: string, _request: Request) {
   const validKey = process.env.ACCESS_KEY || "";
+  const developmentKey = process.env.LG_DEVELOPMENT_KEY || "";
 
-  if (key !== validKey) {
+  if (key !== validKey && key !== developmentKey) {
     throw new Error("Invalid access key");
   }
 

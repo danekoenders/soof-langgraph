@@ -1,7 +1,5 @@
 import { DynamicStructuredTool } from "@langchain/core/tools";
 import { z } from "zod";
-import { validateClaims } from "../../utils/claims.js";
-import { loadChatModel } from "../../retrieval_graph/utils.js";
 
 const productInfoTool = new DynamicStructuredTool({
   name: "product_info",
@@ -62,41 +60,10 @@ const productInfoTool = new DynamicStructuredTool({
                 : [],
             };
 
-            /*
-             * ──────────────────────────────────────────────────────────────────────────
-             *  Validate & (if needed) rewrite description to remove forbidden claims  
-             * ──────────────────────────────────────────────────────────────────────────
-             */
-
-            let finalDescription = mappedProduct.description;
-            try {
-              const validation = await validateClaims(finalDescription);
-              if (!validation.isCompliant) {
-                const modelName = (config as any)?.configurable?.responseModel ?? "openai/gpt-4o-mini";
-                const model = await loadChatModel(modelName);
-                const prompt = [
-                  {
-                    role: "system",
-                    content:
-                      "Rewrite the product description so it no longer contains forbidden health or nutrition claims. Keep it concise and factual.",
-                  },
-                  { role: "assistant", content: finalDescription },
-                ];
-                const regenerated = await model.invoke(prompt);
-                finalDescription = typeof regenerated.content === "string" ? regenerated.content : JSON.stringify(regenerated.content);
-              }
-            } catch (_err) {
-              // If validation or rewriting fails, fall back to the original description
-            }
-
-            // Ensure the (possibly rewritten) description is returned
-            mappedProduct.description = finalDescription;
-
             return {
               metadata: bestProduct,
               product: mappedProduct,
-              instructions:
-                "Create a small and concise description about this product.",
+              instructions: "Create a small and concise description about this product.",
             };
           } else {
             return { error: "No products found."};
