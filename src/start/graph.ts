@@ -6,7 +6,7 @@ import { buildChatContext } from "./context.js";
 import { AgentState } from "./state.js";
 import handoffTool from "./tools/handoff.js";
 import productInfoTool from "./tools/productInfo.js";
-import { enforceCompliance } from "../utils/claims.js";
+import { validateClaims } from "../utils/claims.js";
 
 // -----------------------------------------------------------------------------
 // Tool setup
@@ -26,7 +26,7 @@ const boundModel = model.bindTools(tools);
 const callModel = async (state: typeof AgentState.State) => {
   const { messages } = state;
   const contextMessages = buildChatContext(messages);
-  
+
   const response = await boundModel.invoke(contextMessages);
   const aiMessage = isAIMessage(response) ? response : new AIMessage(response);
 
@@ -49,16 +49,16 @@ const callTools = async (state: typeof AgentState.State, config: any) => {
     ...config,
     configurable: {
       ...config?.configurable,
-      currentState: state
-    }
+      currentState: state,
+    },
   };
-  
+
   // Call the tool node with the enhanced config
   return await toolNode.invoke(state, configWithState);
 };
 
 // -----------------------------------------------------------------------------
-// 3. Compliance node – validate & (optionally) rewrite pendingResponse.
+// 3. Compliance node – validate pendingResponse and store validation results.
 // -----------------------------------------------------------------------------
 const complianceNode = async (state: typeof AgentState.State) => {
   const pending = state.pendingResponse as AIMessage | null;
@@ -67,27 +67,64 @@ const complianceNode = async (state: typeof AgentState.State) => {
   }
 
   const originalText = pending.content as string;
-  const { final, validation } = await enforceCompliance(
-    typeof originalText === "string" ? originalText : JSON.stringify(originalText),
+  const validation = await validateClaims(
+    typeof originalText === "string"
+      ? originalText
+      : JSON.stringify(originalText)
   );
 
-  const finalMessage = new AIMessage(final);
-  // Attach validation details in metadata for inspection on the client side
-  finalMessage.additional_kwargs = {
-    ...finalMessage.additional_kwargs,
-    claimsValidation: validation,
-  } as any;
-
+  // Store validation results but don't add to messages yet - always regenerate for consistent streaming
   return {
-    messages: [finalMessage],
     pendingResponse: null,
-    originalResponse: typeof originalText === "string" ? originalText : JSON.stringify(originalText),
+    originalResponse:
+      typeof originalText === "string"
+        ? originalText
+        : JSON.stringify(originalText),
     claimsValidation: validation,
   };
 };
 
 // -----------------------------------------------------------------------------
-// 4. Routing logic
+// 4. Regenerate node – always regenerate for consistent streaming behavior.
+// -----------------------------------------------------------------------------
+const regenerateNode = async (state: typeof AgentState.State) => {
+  if (!state.claimsValidation || !state.originalResponse) {
+    throw new Error("Missing validation data for regeneration");
+  }
+
+  // Create appropriate system prompt based on compliance status
+  const systemPrompt = state.claimsValidation.isCompliant
+    ? `Return the following text exactly as provided, without any changes: "${state.originalResponse}"`
+    : `The original response contained claims violations. Please rewrite it to be compliant:
+
+    Original response: "${state.originalResponse}"
+    Violated claims: ${state.claimsValidation.violatedClaims.join(", ")}
+    Allowed claims: ${state.claimsValidation.allowedClaims.join(", ")}
+    Suggestions: ${state.claimsValidation.suggestions.join(", ")}
+
+    Provide a compliant response that addresses the user's question without making prohibited claims.`;
+
+  const regeneratedResponse = await model.invoke([
+    { role: "system", content: systemPrompt },
+  ]);
+
+  const finalMessage = isAIMessage(regeneratedResponse)
+    ? regeneratedResponse
+    : new AIMessage(regeneratedResponse);
+
+  // Attach validation details in metadata for inspection on the client side
+  finalMessage.additional_kwargs = {
+    ...finalMessage.additional_kwargs,
+    claimsValidation: state.claimsValidation,
+  } as any;
+
+  return {
+    messages: [finalMessage],
+  };
+};
+
+// -----------------------------------------------------------------------------
+// 5. Routing logic
 // -----------------------------------------------------------------------------
 const routeMessage = (state: typeof AgentState.State) => {
   // If we have a pending response, go to compliance node.
@@ -105,15 +142,17 @@ const routeMessage = (state: typeof AgentState.State) => {
 };
 
 // -----------------------------------------------------------------------------
-// 5. Graph wiring
+// 6. Graph wiring
 // -----------------------------------------------------------------------------
 const workflow = new StateGraph(AgentState)
   .addNode("agent", callModel)
   .addNode("tools", callTools)
   .addNode("compliance", complianceNode)
+  .addNode("regenerate", regenerateNode)
   .addEdge(START, "agent")
   .addConditionalEdges("agent", routeMessage)
-  .addEdge("compliance", END)
+  .addEdge("compliance", "regenerate")
+  .addEdge("regenerate", END)
   .addEdge("tools", "agent");
 
 export const graph = workflow.compile();
