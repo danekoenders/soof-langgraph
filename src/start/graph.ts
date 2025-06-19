@@ -6,12 +6,13 @@ import { buildChatContext } from "./context.js";
 import { AgentState } from "./state.js";
 import handoffTool from "./tools/handoff.js";
 import productInfoTool from "./tools/productInfo.js";
+import validateClaimsTool from "./tools/validateClaims.js";
 import { enforceCompliance } from "../utils/claims.js";
 
 // -----------------------------------------------------------------------------
 // Tool setup
 // -----------------------------------------------------------------------------
-const tools = [handoffTool, productInfoTool];
+const tools = [handoffTool, productInfoTool, validateClaimsTool];
 const toolNode = new ToolNode(tools);
 
 const model = new ChatOpenAI({ model: "gpt-4o-mini" });
@@ -54,7 +55,24 @@ const callTools = async (state: typeof AgentState.State, config: any) => {
   };
   
   // Call the tool node with the enhanced config
-  return await toolNode.invoke(state, configWithState);
+  const update = await toolNode.invoke(state, configWithState);
+
+  // Determine if product_info tool was executed
+  let needsCompliance = state.needsCompliance ?? false;
+  if (update.messages) {
+    for (const msg of update.messages) {
+      if ((msg as any)._getType && (msg as any)._getType() === "tool") {
+        const name = (msg as any).name ?? (msg as any).tool_name;
+        if (name === "product_info") {
+          needsCompliance = true;
+        }
+      }
+    }
+  }
+
+  console.log("needsCompliance", needsCompliance);
+
+  return { ...update, needsCompliance };
 };
 
 // -----------------------------------------------------------------------------
@@ -64,6 +82,11 @@ const complianceNode = async (state: typeof AgentState.State) => {
   const pending = state.pendingResponse as AIMessage | null;
   if (!pending) {
     throw new Error("No pending response to validate");
+  }
+
+  // If no compliance requested, simply release the pending response
+  if (!state.needsCompliance) {
+    return { messages: [pending], pendingResponse: null };
   }
 
   const originalText = pending.content as string;
@@ -83,6 +106,7 @@ const complianceNode = async (state: typeof AgentState.State) => {
     pendingResponse: null,
     originalResponse: typeof originalText === "string" ? originalText : JSON.stringify(originalText),
     claimsValidation: validation,
+    needsCompliance: false,
   };
 };
 
@@ -90,9 +114,10 @@ const complianceNode = async (state: typeof AgentState.State) => {
 // 4. Routing logic
 // -----------------------------------------------------------------------------
 const routeMessage = (state: typeof AgentState.State) => {
-  // If we have a pending response, go to compliance node.
+  // If the agent has produced a draft answer (pendingResponse)
   if (state.pendingResponse) {
-    return "compliance";
+    // Validate only when the flag is set by the tools node
+    return state.needsCompliance ? "compliance" : END;
   }
 
   // Otherwise rely on last assistant message to decide next step.

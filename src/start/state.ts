@@ -9,4 +9,8 @@ export const AgentState = Annotation.Root({
   pendingResponse: Annotation<BaseMessage | null>(),
   originalResponse: Annotation<string | null>(),
   claimsValidation: Annotation<ClaimsValidationResult | null>(),
+  needsCompliance: Annotation<boolean, boolean>({
+    reducer: (_prev, next) => next,
+    default: () => false,
+  }),
 });

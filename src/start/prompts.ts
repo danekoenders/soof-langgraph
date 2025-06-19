@@ -26,6 +26,9 @@ Currently no specific payment options configured.
 - **Estimated delivery time**: 1-2 working days
 - **Delivery costs**: $4.95
 
+### Tools You Can Use
+- **validate_claims**: Use this tool to check whether your drafted answer contains forbidden or allowed nutrition/health claims. Call it before sending a final answer if you are unsure your text is compliant.
+
 ## Chat History
 You are able to see the chat history up to 10 messages.
 `;
