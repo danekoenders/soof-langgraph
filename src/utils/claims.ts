@@ -39,8 +39,6 @@ export async function queryRelevantClaims(
   const embeddings = new OpenAIEmbeddings({ model: "text-embedding-3-small" });
   const queryEmbedding = await embeddings.embedQuery(responseText);
 
-  console.log("querying claims for", responseText);
-
   const queryResponse = await index.query({
     vector: queryEmbedding,
     topK,
@@ -69,7 +67,6 @@ export async function validateClaims(
   threshold = 0.5,
 ): Promise<ClaimsValidationResult> {
   const claims = await queryRelevantClaims(text);
-  console.log("claims", claims);
   const significant = claims.filter((c) => c.score >= threshold);
 
   const allowed = significant
@@ -120,8 +117,6 @@ export async function enforceCompliance(
     "Always generate with the markdown structure as the original text, if applicable.",
   ].join("\n");
 
-  console.log("validating with system prompt", systemPrompt);
-  console.log("text to regenerate", text);
   const regenerated = await model.invoke([
     { role: "system", content: systemPrompt },
     { role: "assistant", content: text },

@@ -32,6 +32,7 @@ const callModel = async (state: typeof AgentState.State) => {
   const contextMessages = buildChatContext(messages);
 
   const response = await boundAgentModel.invoke(contextMessages);
+  console.log("response", response);
   const aiMessage = isAIMessage(response) ? response : new AIMessage(response);
 
   if (aiMessage.tool_calls && aiMessage.tool_calls.length > 0) {
@@ -98,7 +99,7 @@ const regenerateNode = async (state: typeof AgentState.State) => {
 
   // Create appropriate system prompt based on compliance status
   const systemPrompt = state.claimsValidation.isCompliant
-    ? `Return the following text exactly as provided, without any changes: "${state.originalResponse}"`
+    ? `Return the following text exactly as provided, without any changes: "${state.originalResponse}". Do not include the quotation marks within the response.`
     : `The original response contained claims violations. Please rewrite it to be compliant:
 
     Original response: "${state.originalResponse}"
@@ -106,11 +107,15 @@ const regenerateNode = async (state: typeof AgentState.State) => {
     Allowed claims: ${state.claimsValidation.allowedClaims.join(", ")}
     Suggestions: ${state.claimsValidation.suggestions.join(", ")}
 
-    Provide a compliant response that addresses the user's question without making prohibited claims.`;
+    Provide a compliant response that addresses the user's question without making prohibited claims.
+    Do not include the quotation marks within the response.
+    `;
 
   const regeneratedResponse = await streamingModel.invoke([
     { role: "system", content: systemPrompt },
   ]);
+
+  console.log("regeneratedResponse", regeneratedResponse);
 
   const finalMessage = isAIMessage(regeneratedResponse)
     ? regeneratedResponse
