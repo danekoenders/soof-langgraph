@@ -32,7 +32,7 @@ const callModel = async (state: typeof AgentState.State) => {
   const contextMessages = buildChatContext(messages);
 
   const response = await boundAgentModel.invoke(contextMessages);
-  console.log("response", response);
+
   const aiMessage = isAIMessage(response) ? response : new AIMessage(response);
 
   if (aiMessage.tool_calls && aiMessage.tool_calls.length > 0) {
@@ -114,8 +114,6 @@ const regenerateNode = async (state: typeof AgentState.State) => {
   const regeneratedResponse = await streamingModel.invoke([
     { role: "system", content: systemPrompt },
   ]);
-
-  console.log("regeneratedResponse", regeneratedResponse);
 
   const finalMessage = isAIMessage(regeneratedResponse)
     ? regeneratedResponse
