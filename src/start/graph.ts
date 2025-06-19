@@ -14,8 +14,12 @@ import { validateClaims } from "../utils/claims.js";
 const tools = [handoffTool, productInfoTool];
 const toolNode = new ToolNode(tools);
 
-const model = new ChatOpenAI({ model: "gpt-4o-mini" });
-const boundModel = model.bindTools(tools);
+// Non-streaming model for the agent (to avoid duplicate partial events)
+const agentModel = new ChatOpenAI({ model: "gpt-4o-mini", streaming: false });
+const boundAgentModel = agentModel.bindTools(tools);
+
+// Streaming model for the regenerate node – we want token-by-token output
+const streamingModel = new ChatOpenAI({ model: "gpt-4o-mini", streaming: true });
 
 // -----------------------------------------------------------------------------
 // 1. Agent node – generate next assistant message.
@@ -27,7 +31,7 @@ const callModel = async (state: typeof AgentState.State) => {
   const { messages } = state;
   const contextMessages = buildChatContext(messages);
 
-  const response = await boundModel.invoke(contextMessages);
+  const response = await boundAgentModel.invoke(contextMessages);
   const aiMessage = isAIMessage(response) ? response : new AIMessage(response);
 
   if (aiMessage.tool_calls && aiMessage.tool_calls.length > 0) {
@@ -104,7 +108,7 @@ const regenerateNode = async (state: typeof AgentState.State) => {
 
     Provide a compliant response that addresses the user's question without making prohibited claims.`;
 
-  const regeneratedResponse = await model.invoke([
+  const regeneratedResponse = await streamingModel.invoke([
     { role: "system", content: systemPrompt },
   ]);
 
