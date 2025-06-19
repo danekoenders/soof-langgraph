@@ -15,7 +15,7 @@ const tools = [handoffTool, productInfoTool];
 const toolNode = new ToolNode(tools);
 
 // Non-streaming model for the agent (to avoid duplicate partial events)
-const agentModel = new ChatOpenAI({ model: "gpt-4o-mini", streaming: false });
+const agentModel = new ChatOpenAI({ model: "gpt-4o-mini", disableStreaming: true });
 const boundAgentModel = agentModel.bindTools(tools);
 
 // Streaming model for the regenerate node – we want token-by-token output
