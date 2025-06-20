@@ -6,12 +6,13 @@ import { buildChatContext } from "./context.js";
 import { AgentState } from "./state.js";
 import handoffTool from "./tools/handoff.js";
 import productInfoTool from "./tools/productInfo.js";
+import orderStatusTool from "./tools/orderStatus.js";
 import { validateClaims } from "../utils/claims.js";
 
 // -----------------------------------------------------------------------------
 // Tool setup
 // -----------------------------------------------------------------------------
-const tools = [handoffTool, productInfoTool];
+const tools = [handoffTool, productInfoTool, orderStatusTool];
 const toolNode = new ToolNode(tools);
 
 // Non-streaming model for the agent (to avoid duplicate partial events)

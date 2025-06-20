@@ -925,18 +925,18 @@
     "@eslint/core" "^0.15.0"
     levn "^0.4.1"
 
-"@gadget-client/soof-s@^1.41.0-development.2204":
-  version "1.41.0-development.2204"
-  resolved "https://registry.gadget.dev/npm/_/tarball/180378/361588/22296#49bec3e6e01d17b70d18eda709e65d91496dca2b"
-  integrity sha1-Sb7D5uAdF7cNGO2nCeZdkUltyis=
+"@gadget-client/soof-s@^1.41.0-development.2243":
+  version "1.41.0-development.2243"
+  resolved "https://registry.gadget.dev/npm/_/tarball/180378/361588/22388#0251cbc21f9e878bc7bc8cb7a6921c622964351f"
+  integrity sha1-AlHLwh+eh4vHvIy3ppIcYilkNR8=
   dependencies:
-    "@gadgetinc/api-client-core" "0.15.42"
+    "@gadgetinc/api-client-core" "0.15.43"
     tiny-graphql-query-compiler "^0.2.2"
 
-"@gadgetinc/api-client-core@0.15.42":
-  version "0.15.42"
-  resolved "https://registry.yarnpkg.com/@gadgetinc/api-client-core/-/api-client-core-0.15.42.tgz#0018e3d571e7caef507885bca544dcd15f8cce83"
-  integrity sha512-2yH19DKWUpjwabOwVYXGNY2IirZKgwyWDPQwZn1l3urMHwiuBuD/hCgefnSDGyiDEuuJI9ZHqFWuR+hGoMUyfg==
+"@gadgetinc/api-client-core@0.15.43":
+  version "0.15.43"
+  resolved "https://registry.yarnpkg.com/@gadgetinc/api-client-core/-/api-client-core-0.15.43.tgz#85a2d04b9a77539fc049ae36e07857d999059faf"
+  integrity sha512-mbw3cR4IgxgJP3VPaCN3L85n8uth1EnZ8IFLZpXxl63XcfNXnQkAUHRoIZ20OuF8E837DtD51QvMNZ6D6NKcCw==
   dependencies:
     "@0no-co/graphql.web" "^1.0.4"
     "@n1ru4l/graphql-live-query" "^0.10.0"
@@ -952,7 +952,7 @@
     tslib "^2.6.2"
     type-fest "^3.13.1"
     wonka "^6.3.2"
-    ws "^8.17.0"
+    ws "^8.18.2"
 
 "@graphql-typed-document-node/core@^3.2.0":
   version "3.2.0"
@@ -6076,7 +6076,7 @@ write-file-atomic@^5.0.1:
     imurmurhash "^0.1.4"
     signal-exit "^4.0.1"
 
-ws@^8.17.0:
+ws@^8.18.2:
   version "8.18.2"
   resolved "https://registry.yarnpkg.com/ws/-/ws-8.18.2.tgz#42738b2be57ced85f46154320aabb51ab003705a"
   integrity sha512-DMricUmwGZUVr++AEAe2uiVM7UoO9MAVZMDu05UQOaUII0lp+zOzLLU4Xqh/JvTqklB1T4uELaaPBKyjE1r4fQ==
